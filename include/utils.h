@@ -91,6 +91,8 @@ namespace fastevent {
 
     std::string error_message();
 
+    void sleep_seconds(uint16_t duration);
+
     const uint64_t NSEC_IN_SEC = 1000000000ULL;
 
     /**

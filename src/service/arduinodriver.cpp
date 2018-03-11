@@ -20,8 +20,7 @@
 *   leonardo.cpp -- see leonardo.h for description
 */
 #include <iostream>
-#include <sstream>
-#include "leonardo.h"
+#include "arduinodriver.h"
 
 #ifdef __FE_PROFILE_IO__
 #include "utils.h"
@@ -31,7 +30,7 @@ const uint64_t MAX_LATENCY = 10000000000000000000ULL;
 
 namespace fastevent {
     namespace driver {
-        namespace leonardo {
+        namespace arduino {
             // placeholders for commands to be sent
 
             char SYNC_ON   = '1';
@@ -41,46 +40,27 @@ namespace fastevent {
             char FLUSH     = 'F';
             char CLEAR     = 'O';
 
+            char LINE_END  = '\n';
+
         }
 
-        const std::string LeonardoDriver::_identifier("leonardo");
-
-        const std::string& LeonardoDriver::identifier()
-        {
-            return _identifier;
-        };
-
-        Result<OutputDriver *> LeonardoDriver::setup(Config& cfg)
-        {
-            std::cout << "setting up LeonardoDriver" << std::endl;
-
-            try {
-                std::string path = json::get<std::string>(cfg, "port");
-                std::cout << "port=" << path << std::endl;
-                Result<serial_t> portsetup = serial::open(path);
-                if (portsetup.failed()) {
-                    std::stringstream ss;
-                    ss << "error setting up serial port: " << portsetup.what();
-                    return Result<OutputDriver *>::failure(ss.str());
-                }
-                return Result<OutputDriver *>::success(new LeonardoDriver(portsetup.get()));
-
-            } catch (const std::runtime_error& e) {
-                std::stringstream ss;
-                ss << "parse error in 'options/port': " << e.what() << ".";
-                ss << " (set the path to your Arduino in 'options/port' key of 'service.cfg')";
-                return Result<OutputDriver *>::failure(ss.str());
-            }
-        }
-
-        LeonardoDriver::LeonardoDriver(const serial_t& port):
+        ArduinoDriver::ArduinoDriver(const serial_t& port):
             port_(port), sync_(false), event_(false), counter_(0), closed_(false)
 #ifdef __FE_PROFILE_IO__
             , latency(MAX_LATENCY)
 #endif
         {
-            std::cout << "initializing LeonardoDriver." << std::endl;
-            switch (serial::put(port_, &leonardo::CLEAR))
+            // do nothing
+        }
+
+        ArduinoDriver::~ArduinoDriver()
+        {
+            // do nothing
+        }
+
+        void ArduinoDriver::clear()
+        {
+            switch (serial::put(port_, &arduino::CLEAR))
             {
             case serial::Success:
                 break;
@@ -91,28 +71,48 @@ namespace fastevent {
             }
         }
 
-        LeonardoDriver::~LeonardoDriver()
+        void ArduinoDriver::waitForLine()
         {
-            // do nothing
+            char buf;
+            while (true) {
+                switch (serial::get(port_, &buf))
+                {
+                case serial::Success:
+                    break;
+                case serial::Error:
+                    std::cerr << "***error receiving the response: " << error_message() << std::endl;
+                    // fallthrough
+                case serial::Closed:
+                default:
+                    shutdown();
+                    return;
+                }
+
+                if (buf == arduino::LINE_END)
+                {
+                    break;
+                }
+            }
+            std::cout << "--- Arduino is ready." << std::endl;
         }
 
-        void LeonardoDriver::sync(const bool& value)
+        void ArduinoDriver::sync(const bool& value)
         {
             if (sync_ != value)
             {
-                send(value? &leonardo::SYNC_ON : &leonardo::SYNC_OFF);
+                send(value? &arduino::SYNC_ON : &arduino::SYNC_OFF);
             }
         }
 
-        void LeonardoDriver::event(const bool& value)
+        void ArduinoDriver::event(const bool& value)
         {
             if (event_ != value)
             {
-                send(value? &leonardo::EVENT_ON : &leonardo::EVENT_OFF);
+                send(value? &arduino::EVENT_ON : &arduino::EVENT_OFF);
             }
         }
 
-        void LeonardoDriver::send(char *c)
+        void ArduinoDriver::send(char *c)
         {
             if (closed_) {
                 std::cerr << "***port already closed" << std::endl;
@@ -158,12 +158,12 @@ namespace fastevent {
             }
         }
 
-        void LeonardoDriver::shutdown()
+        void ArduinoDriver::shutdown()
         {
             if (!closed_)
             {
                 std::cout << "shutting down LeonardoDriver." << std::endl;
-                serial::put(port_, &leonardo::CLEAR);
+                serial::put(port_, &arduino::CLEAR);
                 serial::close(port_);
                 closed_ = true;
 
@@ -176,6 +176,35 @@ namespace fastevent {
                 std::cout << "------------------------------------------------" << std::endl;
 #endif
             }
+        }
+
+        const std::string LeonardoDriver::_identifier("leonardo");
+
+        const std::string& LeonardoDriver::identifier()
+        {
+            return _identifier;
+        };
+
+        LeonardoDriver::LeonardoDriver(const serial_t& port):
+            ArduinoDriver(port)
+        {
+            std::cout << "initializing LeonardoDriver." << std::endl;
+            clear();
+        }
+
+        const std::string UnoDriver::_identifier("uno");
+
+        const std::string& UnoDriver::identifier()
+        {
+            return _identifier;
+        };
+
+        UnoDriver::UnoDriver(const serial_t& port):
+            ArduinoDriver(port)
+        {
+            std::cout << "initializing UnoDriver." << std::endl;
+            sleep_seconds(3);
+            waitForLine();
         }
     }
 }

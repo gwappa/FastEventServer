@@ -42,7 +42,7 @@ namespace fastevent
     typedef int     serial_t;
 #endif
 
-    const uint32_t DEFAULT_BAUDRATE = 115200;
+    const uint32_t DEFAULT_BAUDRATE = 230400;
 
     namespace serial
     {

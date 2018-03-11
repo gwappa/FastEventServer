@@ -22,7 +22,7 @@
 #include <iostream>
 #include "config.h"
 #include "dummydriver.h"
-#include "leonardo.h"
+#include "arduinodriver.h"
 #include "service.h"
 
 int main()
@@ -34,6 +34,7 @@ int main()
     }
 
     registerOutputDriver(fastevent::driver::DummyDriver);
+    registerOutputDriver(fastevent::driver::UnoDriver);
     registerOutputDriver(fastevent::driver::LeonardoDriver);
 
     fastevent::Result<fastevent::Service *> result = fastevent::Service::configure(config.get());

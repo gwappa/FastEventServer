@@ -25,9 +25,9 @@
 #include <sstream>
 
 #ifdef _WIN32
-// #include <wdm.h>
 #else
 #include <errno.h>
+#include <unistd.h>
 #endif
 
 namespace fastevent {
@@ -49,6 +49,15 @@ namespace fastevent {
       std::stringstream ss;
       ss << strerror(errno);
       return ss.str();
+#endif
+    }
+
+    void sleep_seconds(uint16_t duration)
+    {
+#ifdef _WIN32
+        Sleep(duration);
+#else
+        sleep(duration);
 #endif
     }
 
