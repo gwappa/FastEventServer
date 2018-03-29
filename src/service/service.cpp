@@ -22,6 +22,9 @@
 #include "service.h"
 #include "dummydriver.h"
 
+// comment out if you want to know when ACQ has sent out
+// #define DEBUG_ACQ
+
 #ifdef _WIN32
 typedef int             socketlen_t;
 typedef char *          optionvalue_t;
@@ -97,39 +100,39 @@ namespace fastevent {
     }
 
     namespace protocol {
-        const size_t WIDTH = 3; // command byte + '\r' + '\n'
 
         Status read(socket_t socket, char *cmdbuf)
         {
-            char buf[WIDTH];
-            int count = 0;
+            char buf;
 
-            for (int resp = ::recv(socket, buf, WIDTH, 0);
-                 count < WIDTH;
-                 resp = ::recv(socket, buf+count, WIDTH-count, 0))
+            for (int count = ::recv(socket, cmdbuf, 1, 0);
+                 count < 1;
+                 count = ::recv(socket, cmdbuf, 1, 0))
             {
-                switch (resp)
+                switch (count)
                 {
                 case 0:
                     // socket closed
                     return Closed;
                 case -1:
-                    // unexpected error
+                    // not available
                     return Error;
                 default:
-                    // keep reading until count == WIDTH
-                    count += resp;
                     break;
                 }
             }
-            *cmdbuf = buf[0];
             return Success;
         }
+
+        const size_t WIDTH = 3; // command byte + '\r' + '\n'
 
         Status acq(socket_t socket)
         {
             const char msg[] = "Y\r\n";
             int count = 0;
+#ifdef DEBUG_ACQ
+            std::cout << "Acknowledge: ";
+#endif
 
             for (int resp = ::send(socket, msg, WIDTH, 0);
                  count < WIDTH;
@@ -137,8 +140,11 @@ namespace fastevent {
             {
                 switch (resp)
                 {
-                case -1:
+                case SOCKET_ERROR:
                     // unexpected error
+#ifdef DEBUG_ACQ
+                    std::cout << "ERROR" << std::endl;
+#endif
                     return Error;
                 default:
                     // keep reading until count == WIDTH
@@ -146,6 +152,9 @@ namespace fastevent {
                     break;
                 }
             }
+#ifdef DEBUG_ACQ
+            std::cout << "DONE" << std::endl;
+#endif
             return Success;
         }
     }
@@ -376,40 +385,50 @@ namespace fastevent {
     {
         char cmd;
 
-        switch (protocol::read(client, &cmd))
-        {
-        case protocol::Success:
-            break;
-        case protocol::Closed:
-            return CloseRequest;
-        case protocol::Error:
-        default:
-            return HandlingError;
-        }
+        while(true){
+            switch (protocol::read(client, &cmd))
+            {
+            case protocol::Success:
+                break;
+            case protocol::Closed:
+                return CloseRequest;
+            case protocol::Error:
+            default:
+                goto DONE;
+            }
 
-        switch (cmd)
-        {
-        case protocol::SYNC_ON:
-            driver->sync(true);
-            break;
-        case protocol::SYNC_OFF:
-            driver->sync(false);
-            break;
-        case protocol::EVENT_ON:
-            driver->event(true);
-            break;
-        case protocol::EVENT_OFF:
-            driver->event(false);
-            break;
-        case protocol::SHUTDOWN:
-            protocol::acq(client);
-            return ShutdownRequest;
-        default:
-            std::cerr << "unknown command: '" << cmd << "'" << std::endl;
-            break;
+            switch (cmd)
+            {
+            case protocol::SYNC_ON:
+                driver->sync(true);
+                protocol::acq(client);
+                break;
+            case protocol::SYNC_OFF:
+                driver->sync(false);
+                protocol::acq(client);
+                break;
+            case protocol::EVENT_ON:
+                driver->event(true);
+                protocol::acq(client);
+                break;
+            case protocol::EVENT_OFF:
+                driver->event(false);
+                protocol::acq(client);
+                break;
+            case protocol::SHUTDOWN:
+                protocol::acq(client);
+                return ShutdownRequest;
+            case '\r':
+            case '\n':
+                // do nothing
+                break;
+            default:
+                std::cerr << "unknown command: '" << cmd << "'" << std::endl;
+                break;
+            }
         }
-        protocol::acq(client);
-        return Acknowledge;
+        DONE:
+        return HandlingError;
     }
 
     void Service::shutdown(const bool& verbose)

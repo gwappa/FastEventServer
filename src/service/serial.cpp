@@ -20,6 +20,8 @@
 *   serial.cpp -- see serial.h for description
 */
 
+#include "serial.h"
+
 #ifndef _WIN32
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -30,35 +32,49 @@
 
 #include <iostream>
 #include <sstream>
-#include "serial.h"
 
 namespace fastevent
 {
     namespace serial
     {
 #ifdef _WIN32
+        /**
+         * open COM port as 'unbuffered', in a WINAPI way.
+         * it looks like, that jSSC opens the port this way by default.
+         */
         Result<serial_t> open(const std::string& path, const uint32_t& baud)
         {
             serial_t    desc;
-            DCB         params = {0};
 
-            params.BaudRate = baud;
-            params.ByteSize = 8;
-            params.StopBits = ONESTOPBIT;
-            params.Parity   = NOPARITY;
-
+            // open it OVERLAPPED (i.e async)
             if ((desc = CreateFile(path.c_str(),
                              GENERIC_READ | GENERIC_WRITE,
                              0,
                              0,
                              OPEN_EXISTING,
-                             FILE_ATTRIBUTE_NORMAL,
+                             FILE_FLAG_OVERLAPPED,
                              0)) == INVALID_HANDLE_VALUE)
             {
                 std::stringstream ss;
                 ss << "failed to open serial port at " << path << ": " << error_message();
                 return Result<serial_t>::failure(ss.str());
             }
+
+            // set I/O buffer to zero (although they say that it is
+            // rarely taken into account by the device driver)
+            SetupComm(desc,0,0);
+
+            DCB         params = {0};
+            GetCommState(desc, &params);
+
+            // Set the parameter to "8N1" without any flow control, with the specified baud rate
+            params.BaudRate     = baud;
+            params.ByteSize     = 8;
+            params.StopBits     = ONESTOPBIT;
+            params.Parity       = NOPARITY;
+            params.fOutxCtsFlow = FALSE;
+            params.fDtrControl  = DTR_CONTROL_DISABLE;
+            params.fRtsControl  = RTS_CONTROL_DISABLE;
 
             if (!SetCommState(desc, &params))
             {
@@ -71,78 +87,75 @@ namespace fastevent
             return Result<serial_t>::success(desc);
         }
 
-        // TODO: change to WIN32 API
         Status get(serial_t port, char* c)
         {
             DWORD count = 0;
 
-            // TODO:
-            // the whole while loop may not be needed, since
-            // MSDN says it blocks (in sync mode) until the completion
-            // of the procedure.
-            //
-            // Nevertheless, I would rather overprocess here to avoid
-            // any weird errors.
-            // If the latency becomes a concern, I consider removing
-            // the while loop.
-            while (count == 0)
+            // since we opened in OVERLAPPED mode,
+            // we use ReadFile/GetOverlappedResults-based ASYNC functions.
+            // therefore we need an OVERLAPPED structure.
+            OVERLAPPED event;
+            SecureZeroMemory(&event,sizeof(event));
+
+            // async ReadFile call (lpNumberOfBytes must be set NULL, lpOverlapped must be set non-NULL)
+            if (ReadFile(port, c, 1, 0, &event) == 0)
+            // if the ReadFile operation is not complete immediately:
             {
-                if (ReadFile(port, c, 1, &count, NULL) == 0)
+                switch(GetLastError())
                 {
-                    // this block may not be needed...
-                    switch(GetLastError())
+                // if the read operation has not completed yet
+                case ERROR_IO_PENDING:
+                    // wait for the overlapped operation to complete
+                    if (!GetOverlappedResult(port, &event, &count, TRUE) || (count == 0))
+                    // on failure
                     {
-                    // waiting for the data to come
-                    // (probably only for async communication)
-                    case ERROR_IO_PENDING:
-                        continue;
-                    // one byte read but more in the read buffer
-                    // (probably only for communication through pipes)
-                    case ERROR_MORE_DATA:
-                        if (count == 1) {
-                            return Success;
-                        }
-                        break;
-                    // in other cases, this means a 'proper' error
-                    default:
                         return Error;
                     }
+                    break;
+                // in the other cases, this means a 'proper' error
+                default:
+                    return Error;
                 }
             }
+
+            // by this point the read operation must have been successful
             return Success;
         }
 
-        // TODO: change to WIN32 API
+
         Status put(serial_t port, char* c)
         {
             DWORD count = 0;
 
-            // TODO:
-            // the whole while loop may not be needed, since
-            // MSDN says it blocks (in sync mode) until the completion
-            // of the procedure.
-            //
-            // Nevertheless, I would rather overprocess here to avoid
-            // any weird errors.
-            // If the latency becomes a concern, I consider removing
-            // the while loop.
-            while (count == 0)
+            // TODO: make it using WriteFile/GetOverlappedResults-based ASYNC functions.
+            // since we opened in OVERLAPPED mode,
+            // we use ReadFile/GetOverlappedResults-based ASYNC functions.
+            // therefore we need an OVERLAPPED structure.
+            OVERLAPPED event;
+            SecureZeroMemory(&event,sizeof(event));
+
+            // async WriteFile call (lpNumberOfBytesWritten should be set NULL, lpOverlapped must be set non-NULL)
+            if (WriteFile(port, c, 1, 0, &event) == 0)
+            // if the WriteFile operation did not complete immediately:
             {
-                if (WriteFile(port, c, 1, &count, NULL) == 0)
+                switch (GetLastError())
                 {
-                    // this block may not be needed...
-                    switch(GetLastError())
+                // if the write operation has not completed yet
+                case ERROR_IO_PENDING:
+                    // wait for the overlapped operation to complete
+                    if (!GetOverlappedResult(port, &event, &count, TRUE) || (count == 0))
+                    // on failure
                     {
-                    // waiting for the data to come
-                    // (probably only for async communication)
-                    case ERROR_IO_PENDING:
-                        continue;
-                    // in other cases, this means a 'proper' error
-                    default:
                         return Error;
                     }
+                    break;
+                // in the other cases, this means a 'proper' error
+                default:
+                    return Error;
                 }
             }
+
+            // by this point the write operation must have been successful
             return Success;
         }
 

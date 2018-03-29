@@ -48,3 +48,4 @@ Below is the rough result of the benchmark in my environment (MacOS X):
 |Uno            |~3000*              |938                     |1.07               |
 
 \*Note that data rate on Arduino Uno can vary depending on the rate of commands.
+
