@@ -28,6 +28,8 @@
 const uint64_t MAX_LATENCY = 10000000000000000000ULL;
 #endif
 
+#define LOG_OUTPUT_ARDUINO
+
 namespace fastevent {
     namespace driver {
         namespace arduino {
@@ -101,6 +103,10 @@ namespace fastevent {
             if (sync_ != value)
             {
                 send(value? &arduino::SYNC_ON : &arduino::SYNC_OFF);
+                sync_ = value;
+#ifdef LOG_OUTPUT_ARDUINO
+                std::cout << "sync->" << value << std::endl;
+#endif
             }
         }
 
@@ -109,6 +115,10 @@ namespace fastevent {
             if (event_ != value)
             {
                 send(value? &arduino::EVENT_ON : &arduino::EVENT_OFF);
+                event_ = value;
+#ifdef LOG_OUTPUT_ARDUINO
+                std::cout << "event->" << value << std::endl;
+#endif
             }
         }
 
