@@ -40,6 +40,7 @@ namespace fastevent {
             ~DummyDriver();
             void sync(const bool& value);
             void event(const bool& value);
+            void update(const bool& sync, const bool& event);
             void shutdown();
         };
     }

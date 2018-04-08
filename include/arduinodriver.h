@@ -71,6 +71,7 @@ namespace fastevent {
             ~ArduinoDriver();
             void sync(const bool& value);
             void event(const bool& value);
+            void update(const bool& sync, const bool& event);
             void shutdown();
 
         protected:
@@ -94,6 +95,7 @@ namespace fastevent {
             nanostamp  clock_;
             // placeholder for IO profiling info
             averager<uint64_t, uint64_t> latency;
+            uint64_t minimum, maximum;
 #endif
         };
 

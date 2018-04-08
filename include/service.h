@@ -28,6 +28,7 @@
 #else
   #include <sys/socket.h>
   #include <sys/types.h>
+  #include <netinet/in.h>
 #endif
 
 #include <stdint.h>
@@ -68,16 +69,12 @@ namespace fastevent {
 
     namespace protocol {
 
-        enum Status { Success, Error, Closed };
-
         const char SYNC_ON      = '1';
         const char SYNC_OFF     = '2';
         const char EVENT_ON     = 'A';
-        const char EVENT_OFF    = 'B';
-        const char SHUTDOWN     = 'Q';
-
-        Status read(socket_t socket, char* cmdbuf);
-        Status acq(socket_t socket);
+        const char EVENT_OFF    = 'D';
+        const char SHUTDOWN     = 'X';
+        const char ACQKNOWLEDGE = 'Y';
     }
 
     /**
@@ -85,7 +82,8 @@ namespace fastevent {
     */
     class Service {
     public:
-        enum Status { Acknowledge, HandlingError, CloseRequest, ShutdownRequest };
+        static const size_t MAX_MSG_SIZE = 32;
+        enum Status { Acqknowledge, HandlingError, CloseRequest, ShutdownRequest };
 
         /**
         *   attempts to build a Service instance.
@@ -126,37 +124,21 @@ namespace fastevent {
         bool    loop(const bool& verbose=true);
 
         /**
-        *   a private routine for accepting an incoming client.
-        *   searches for an empty space in `client_` and add to it.
-        *   also handles updating `nclient_`, `fdread_` and `fdwatch_`.
-        */
-        void    acceptClient();
-
-        /**
-        *   a private routine for closing a client socket.
-        *   removes the client socket from the `client_` list.
-        *   also handles updating `nclient_`, `fdread_` and `fdwatch_`.
-        */
-        void    closeClient(socket_t client);
-
-        /**
-        *   a private routine for updating `fdwatch_`.
-        *   normally called from `acceptClient()` or `closeClient()`.
-        */
-        void    compute_fdwatch();
-
-        /**
         *   the routine for handling a request from a client.
         *   `driver` is explicitly passed from `loop()` in case we plug an
         *   external handler in the future.
         *
-        *   @param      client  the client socket from which a request is read
         *   @param      driver  the output generator driver to be used
         *   @returns    status  a Service::Status value to represent the resulting response
         */
-        Status  handle(socket_t client, OutputDriver* driver);
+        Status  handle(OutputDriver* driver);
 
         /**
+        * a support routine to send an ACQ message back to the client.
+        */
+        Status acqknowledge(struct sockaddr_in& sender);
+
+       /**
         *   a private routine for shutting down the service.
         *   called internally from `run()`.
         */
@@ -177,16 +159,6 @@ namespace fastevent {
         *   the output generator driver to be used
         */
         OutputDriver*   driver_;
-
-        /**
-        *   list of client sockets
-        */
-        socket_t        client_[CONN_MAX];
-
-        /**
-        *   the number of clients that are currently connecting to the service
-        */
-        size_t          nclient_;
 
         /**
         *   `fdread_` and `fdwatch_` are used as arguments of `select()` call

@@ -7,11 +7,12 @@ import time
 import numpy as np
 
 class Client(object):
-    SYNC_ON     = b'1\r\n'
-    SYNC_OFF    = b'2\r\n'
-    EVENT_ON    = b'A\r\n'
-    EVENT_OFF   = b'B\r\n'
+    SYNC_ON     = b'1'
+    SYNC_OFF    = b'2'
+    EVENT_ON    = b'A'
+    EVENT_OFF   = b'D'
     ACQ         = b'Y'
+    QUIT        = b'X'
 
     def __init__(self, cfgfile='service.cfg',
                        host='localhost',
@@ -31,20 +32,17 @@ class Client(object):
         # read config file
         with open(cfgfile, 'r') as fp:
             self.config     = json.load(fp)
-        self.socket         = socket.create_connection((host,self.config['port']))
+        self.socket         = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.connect((host, self.config['port']))
         self.interactive    = interactive
         self.showresponse   = showresponse
         self.timed          = timed
         self.latency        = []
         self.closed         = False
-        self.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
         print("connected to: {}".format(self.socket.getpeername()))
 
     def read(self):
-        r = b'0'
-        while r != Client.ACQ:
-            r = self.socket.recv(1)
-        return r
+        return self.socket.recv(1)
 
     def sync(self, value=True):
         if self.timed == True:
@@ -76,6 +74,7 @@ class Client(object):
 
     def close(self):
         if self.closed == False:
+            self.socket.send(Client.QUIT)
             self.socket.close()
             self.closed = True
             if self.timed == True:
@@ -83,6 +82,8 @@ class Client(object):
                 print('-'*30)
                 print('latency: {:.3f}±{:.3f} usec'.format(latency.mean(), latency.std()))
                 print('-'*30)
+            if hasattr(self, 'socket'):
+                del self.socket
 
     def random(self, num=1):
         """randomly generates commands (chosen from sync/event) and sends it via the socket.

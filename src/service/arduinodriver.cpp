@@ -28,7 +28,7 @@
 const uint64_t MAX_LATENCY = 10000000000000000000ULL;
 #endif
 
-#define LOG_OUTPUT_ARDUINO
+// #define LOG_OUTPUT_ARDUINO
 
 namespace fastevent {
     namespace driver {
@@ -38,7 +38,7 @@ namespace fastevent {
             char SYNC_ON   = '1';
             char SYNC_OFF  = '2';
             char EVENT_ON  = 'A';
-            char EVENT_OFF = 'B';
+            char EVENT_OFF = 'D';
             char FLUSH     = 'F';
             char CLEAR     = 'O';
 
@@ -49,7 +49,7 @@ namespace fastevent {
         ArduinoDriver::ArduinoDriver(const serial_t& port):
             port_(port), sync_(false), event_(false), counter_(0), closed_(false)
 #ifdef __FE_PROFILE_IO__
-            , latency(MAX_LATENCY)
+            , latency(MAX_LATENCY), minimum(MAX_LATENCY), maximum(0)
 #endif
         {
             // do nothing
@@ -122,6 +122,18 @@ namespace fastevent {
             }
         }
 
+        void ArduinoDriver::update(const bool& sync, const bool& event) {
+            char out = 0x00;
+            out     |= sync? arduino::SYNC_ON : arduino::SYNC_OFF;
+            out     |= event? arduino::EVENT_ON : arduino::EVENT_OFF;
+            send(&out);
+            sync_    = sync;
+            event_   = event;
+#ifdef LOG_OUTPUT_ARDUINO
+            std::cout << "sync->" << sync << ", event->" << event << std::endl;
+#endif
+        }
+
         void ArduinoDriver::send(char *c)
         {
             if (closed_) {
@@ -163,7 +175,10 @@ namespace fastevent {
 
 #ifdef __FE_PROFILE_IO__
                 clock_.get(&stop);
-                latency.add(stop-start);
+                uint64_t lat = stop - start;
+                latency.add(lat);
+                if (minimum > lat) minimum = lat;
+                if (maximum < lat) maximum = lat;
 #endif
             }
         }
@@ -179,7 +194,9 @@ namespace fastevent {
 
 #ifdef __FE_PROFILE_IO__
                 double lat = latency.get();
-                // std::cout << "latency sum -- " << latency.sum() << "/" << latency.num() << std::endl;
+                std::cout << "------------------------------------------------" << std::endl;
+                std::cout << "minimal response latency: " << ((double)minimum)/1000 << "usec" << std::endl;
+                std::cout << "maximal response latency: " << ((double)maximum)/1000 << "usec" << std::endl;
                 std::cout << "------------------------------------------------" << std::endl;
                 std::cout << "average response latency: " << lat/1000 << " usec/transaction" << std::endl;
                 std::cout << "(negative latency means there was no transaction)" << std::endl;

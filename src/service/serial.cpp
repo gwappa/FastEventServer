@@ -84,6 +84,8 @@ namespace fastevent
                 return Result<serial_t>::failure(ss.str());
             }
 
+            // TODO: set timeout parameters??
+
             return Result<serial_t>::success(desc);
         }
 
@@ -127,7 +129,6 @@ namespace fastevent
         {
             DWORD count = 0;
 
-            // TODO: make it using WriteFile/GetOverlappedResults-based ASYNC functions.
             // since we opened in OVERLAPPED mode,
             // we use ReadFile/GetOverlappedResults-based ASYNC functions.
             // therefore we need an OVERLAPPED structure.

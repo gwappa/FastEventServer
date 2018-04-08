@@ -34,7 +34,7 @@ namespace fastevent {
     /**
     *   OutputDriver class is the base interface for output generator driver.
     *
-    *   in addition to sync() and event() methods, the subclasses
+    *   in addition to sync(), event() and update() methods, the subclasses
     *   must implement the following public static members:
     *
     *   + static std::string identifier()
@@ -49,9 +49,27 @@ namespace fastevent {
     private:
         static Registry _registry;
     public:
+
         virtual ~OutputDriver() {}
+
+        /**
+         * updates 'sync' flag
+         */
         virtual void sync(const bool& value)=0;
+
+        /**
+         * updates 'event' flag
+         */
         virtual void event(const bool& value)=0;
+
+        /**
+         * updates 'sync' and 'event' flags at the same time
+         */
+        virtual void update(const bool& sync, const bool& event)=0;
+
+        /**
+         * shuts down the driver
+         */
         virtual void shutdown()=0;
 
         template <typename T>

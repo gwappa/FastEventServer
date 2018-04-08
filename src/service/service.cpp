@@ -22,9 +22,6 @@
 #include "service.h"
 #include "dummydriver.h"
 
-// comment out if you want to know when ACQ has sent out
-// #define DEBUG_ACQ
-
 #ifdef _WIN32
 typedef int             socketlen_t;
 typedef char *          optionvalue_t;
@@ -99,77 +96,13 @@ namespace fastevent {
 #undef close_socket__
     }
 
-    namespace protocol {
-
-        Status read(socket_t socket, char *cmdbuf)
-        {
-            char buf;
-
-            for (int count = ::recv(socket, cmdbuf, 1, 0);
-                 count < 1;
-                 count = ::recv(socket, cmdbuf, 1, 0))
-            {
-                switch (count)
-                {
-                case 0:
-                    // socket closed
-                    return Closed;
-                case -1:
-                    // not available
-                    return Error;
-                default:
-                    break;
-                }
-            }
-            return Success;
-        }
-
-        const size_t WIDTH = 3; // command byte + '\r' + '\n'
-
-        Status acq(socket_t socket)
-        {
-            const char msg[] = "Y\r\n";
-            int count = 0;
-#ifdef DEBUG_ACQ
-            std::cout << "Acknowledge: ";
-#endif
-
-            for (int resp = ::send(socket, msg, WIDTH, 0);
-                 count < WIDTH;
-                 resp = ::send(socket, msg+count, WIDTH-count, 0))
-            {
-                switch (resp)
-                {
-                case SOCKET_ERROR:
-                    // unexpected error
-#ifdef DEBUG_ACQ
-                    std::cout << "ERROR" << std::endl;
-#endif
-                    return Error;
-                default:
-                    // keep reading until count == WIDTH
-                    count += resp;
-                    break;
-                }
-            }
-#ifdef DEBUG_ACQ
-            std::cout << "DONE" << std::endl;
-#endif
-            return Success;
-        }
-    }
-
     network::Manager Service::_network;
 
     Service::Service(socket_t listening, OutputDriver *driver):
         socket_(listening),
         driver_(driver),
-        nclient_(0),
-        fdwatch_(listening+1)
+        fdwatch_(static_cast<int>(listening+1))
     {
-        for(int i=0; i<CONN_MAX; i++){
-            client_[i] = NO_CLIENT;
-        }
         FD_ZERO(&fdread_);
         FD_SET(socket_, &fdread_);
     }
@@ -215,7 +148,7 @@ namespace fastevent {
     Result<socket_t> Service::bind(uint16_t port, const bool& verbose)
     {
         // create a socket to listen to
-        socket_t listening = socket(AF_INET, SOCK_STREAM, 0);
+        socket_t listening = socket(AF_INET, SOCK_DGRAM, 0);
         if (listening == INVALID_SOCKET) {
             return Result<socket_t>::failure("network error: could not initialize the listening socket");
         }
@@ -239,16 +172,11 @@ namespace fastevent {
             return Result<socket_t>::failure(ss.str());
         }
 
-        // start listening
-        if( ::listen(listening, CONN_MAX) == SOCKET_ERROR ){
-            std::stringstream ss;
-            ss << "network error: failed to start listening to port " << port
-                << " (" << error_message() << ")";
-            return Result<socket_t>::failure(ss.str());
-        }
+        // do not start listening here,
+        // as it is not a TCP socket...
 
         if (verbose) {
-            std::cout << "start listening to port " << port << "..." << std::endl;
+            std::cout << "prepared port " << port << "..." << std::endl;
         }
 
         return Result<socket_t>::success(listening);
@@ -263,43 +191,22 @@ namespace fastevent {
     bool Service::loop(const bool& verbose)
     {
         // perform select(2)
-        fd_set _mask;
+        fd_set              _mask;
+
         memcpy(&_mask, &fdread_, sizeof(fdread_));
         select(fdwatch_, &_mask, NULL, NULL, NULL);
 
         // placeholder for `handle()` return value
         Status res;
 
-        // check client sockets
-        for (int i=0; i<CONN_MAX; i++) {
-            if (client_[i] == NO_CLIENT) {
-                continue;
-            }
-            if (FD_ISSET(client_[i], &_mask)) {
-                // receiving data from an existing client
-                res = handle(client_[i], driver_);
-
-                if( res == HandlingError ){ // unexpected error during handle()
-                    return false;
-
-                } else if ( res == CloseRequest ){ // connection closed
-                    closeClient(client_[i]);
-                    if( nclient_ == 0 ){ // if no more client is there, just shut down
-                        return false;
-                    }
-
-                } else if ( res == ShutdownRequest ){ // SHUTDOWN received
-                    return false;
-                }
-
-                return true;
-            } // if FD_ISSET
-        }// for loop for connections
-
-        // check the listening socket
+        // in case there is an input in the socket:
         if (FD_ISSET(socket_, &_mask)) {
-            // new client connecting to the listening socket
-            acceptClient();
+            res = handle(driver_);
+            if (res == HandlingError) {
+                return false;
+            } else if (res == ShutdownRequest) {
+                return false;
+            }
             return true;
         }
 
@@ -308,140 +215,91 @@ namespace fastevent {
         return false;
     }
 
-    void Service::acceptClient()
+    Service::Status Service::handle(OutputDriver* driver)
     {
-        // call accept(2)
-        socket_t    conn;
-        struct sockaddr_in client;
-        socketlen_t len = sizeof(client);
+        char                buf[MAX_MSG_SIZE];
+        struct sockaddr_in  sender;
+        socketlen_t         address_len = sizeof(sender);
 
-        conn = accept(socket_, (struct sockaddr *)&client, &len); // socket.h OR winsock2.h
-        if( conn == INVALID_SOCKET ){
-            std::cerr << "***service error: accept() failed" << std::endl;
-            return;
-        }
-
-        // TODO: is this section needed?
-        int nodelay = 1;
-        setsockopt(conn, IPPROTO_TCP, TCP_NODELAY, (char *)&nodelay, sizeof(int));
-
-        // add to client list: obtain the index for the new client socket
-        int idx = -1;
-        for( int i=0; i<CONN_MAX; i++ ){
-            if( client_[i] == NO_CLIENT ){
-                idx = i;
-                break;
-            }
-        }
-
-        // update nclient_, fdread_ and fdwatch_ according to the new client socket
-        if ( idx != -1 ){
-            client_[idx] = conn;
-            nclient_++;
-            FD_SET(conn, &fdread_);
-            compute_fdwatch();
-        } else {
-            std::cerr << "***service error: cannot accept a client anymore (the list is full)" << std::endl;
-            network::close_socket(conn);
-        }
-    }
-
-    void Service::closeClient(socket_t client)
-    {
-        // close the socket
-        network::close_socket(client);
-
-        // remove the socket from the client list, and decrement nclient_
-        int i;
-        for( i=0; i<CONN_MAX; i++ ){
-            if( client_[i] == client ){
-                client_[i] = NO_CLIENT;
-                nclient_--;
-                break;
-            }
-        }
-
-        // update fdread_ and fdwatch_
-        FD_CLR(client, &fdread_);
-        compute_fdwatch();
-    }
-
-    void Service::compute_fdwatch()
-    {
-        // let `watch` be the maximum file descriptor
-        int watch = static_cast<int>(socket_);
-        for(int i=0; i<CONN_MAX; i++)
-        {
-            if( watch < client_[i] ){
-                watch = static_cast<int>(client_[i]);
-            }
-        }
-
-        // `fdwatch_` be watch + 1 (from select(2))
-        fdwatch_ = watch + 1;
-    }
-
-    Service::Status Service::handle(socket_t client, OutputDriver* driver)
-    {
-        char cmd;
-
-        while(true){
-            switch (protocol::read(client, &cmd))
-            {
-            case protocol::Success:
-                break;
-            case protocol::Closed:
-                return CloseRequest;
-            case protocol::Error:
-            default:
-                goto DONE;
-            }
-
-            switch (cmd)
-            {
+        // read a UDP packet
+        switch (recvfrom(socket_, buf, MAX_MSG_SIZE - 1, 0,
+                    (struct sockaddr*)&sender, &address_len)) {
+        case 0:
+            // do nothing
+            break;
+        case SOCKET_ERROR:
+            std::cerr << "***failed to receive a packet: " << error_message() << std::endl;
+            return HandlingError;
+        default:
+            // message received
+            switch (buf[0]) {
+            // in case of single command
             case protocol::SYNC_ON:
                 driver->sync(true);
-                protocol::acq(client);
-                break;
+                return acqknowledge(sender);
             case protocol::SYNC_OFF:
                 driver->sync(false);
-                protocol::acq(client);
-                break;
+                return acqknowledge(sender);
             case protocol::EVENT_ON:
                 driver->event(true);
-                protocol::acq(client);
-                break;
+                return acqknowledge(sender);
             case protocol::EVENT_OFF:
                 driver->event(false);
-                protocol::acq(client);
-                break;
+                return acqknowledge(sender);
+            // multiplexed command
+            case (protocol::SYNC_ON) | (protocol::EVENT_ON):
+                driver->update(true, true);
+                return acqknowledge(sender);
+            case (protocol::SYNC_ON) | (protocol::EVENT_OFF):
+                driver->update(true, false);
+                return acqknowledge(sender);
+            case (protocol::SYNC_OFF) | (protocol::EVENT_ON):
+                driver->update(false, true);
+                return acqknowledge(sender);
+            case (protocol::SYNC_OFF) | (protocol::EVENT_OFF):
+                driver->update(false, false);
+                return acqknowledge(sender);
+            // shutdown command
             case protocol::SHUTDOWN:
-                protocol::acq(client);
+                acqknowledge(sender);
                 return ShutdownRequest;
+            // newline characters
             case '\r':
             case '\n':
                 // do nothing
                 break;
+            // others
             default:
-                std::cerr << "unknown command: '" << cmd << "'" << std::endl;
-                break;
+                std::cerr << "unknown command: '" << buf[0] << "'" << std::endl;
+                return HandlingError;
+            }
+            break;
+        }
+        return Acqknowledge;
+    }
+
+    Service::Status Service::acqknowledge(struct sockaddr_in& sender) {
+        char msg[] = { protocol::ACQKNOWLEDGE };
+        while (true) {
+            switch (sendto(socket_, msg, 1, 0, (struct sockaddr*)&sender, sizeof(struct sockaddr_in))) {
+            case 1:
+                // success
+                return Acqknowledge;
+            case 0:
+                // waiting
+                continue;
+            case SOCKET_ERROR:
+            default:
+                std::cerr << "***failed to send a packet: " << error_message() << std::endl;
+                return HandlingError;
             }
         }
-        DONE:
-        return HandlingError;
     }
 
     void Service::shutdown(const bool& verbose)
     {
         if (verbose) {
             std::cout << "shutting down the server..." << std::endl;
-        }
-
-        // close all the client sockets without any notification
-        for(int i=0; i<CONN_MAX; i++){
-            if (client_[i] != NO_CLIENT) {
-                network::close_socket(client_[i]);
-            }
         }
 
         // close the listening socket

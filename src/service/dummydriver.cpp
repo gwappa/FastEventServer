@@ -57,6 +57,12 @@ namespace fastevent {
             std::cout << "event->" << value << std::endl;
         }
 
+        void DummyDriver::update(const bool& sync, const bool& event)
+        {
+            this->sync(sync);
+            this->event(event);
+        }
+
         void DummyDriver::shutdown()
         {
             std::cout << "shutting down DummyDriver." << std::endl;
