@@ -24,6 +24,8 @@
 #define __FE_ARDUINODRIVER_H__
 #include <sstream>
 
+#include "ks/utils.h"
+#include "ks/timing.h"
 #include "driver.h"
 #include "serial.h"
 
@@ -40,26 +42,26 @@ namespace fastevent {
 
         namespace arduino {
             template <typename T>
-            Result<OutputDriver *> setup(Config& cfg)
+            ks::Result<OutputDriver *> setup(Config& cfg)
             {
-                std::cout << "setting up Arduino" << std::endl;
+                std::cerr << "setting up Arduino" << std::endl;
 
                 try {
                     std::string path = json::get<std::string>(cfg, "port");
-                    std::cout << "port=" << path << std::endl;
-                    Result<serial_t> portsetup = serial::open(path);
+                    std::cerr << "port=" << path << std::endl;
+                    ks::Result<serial_t> portsetup = serial::open(path);
                     if (portsetup.failed()) {
                         std::stringstream ss;
                         ss << "error setting up serial port: " << portsetup.what();
-                        return Result<OutputDriver *>::failure(ss.str());
+                        return ks::Result<OutputDriver *>::failure(ss.str());
                     }
-                    return Result<OutputDriver *>::success(new T(portsetup.get()));
+                    return ks::Result<OutputDriver *>::success(new T(portsetup.get()));
 
                 } catch (const std::runtime_error& e) {
                     std::stringstream ss;
                     ss << "parse error in 'options/port': " << e.what() << ".";
                     ss << " (set the path to your Arduino in 'options/port' key of 'service.cfg')";
-                    return Result<OutputDriver *>::failure(ss.str());
+                    return ks::Result<OutputDriver *>::failure(ss.str());
                 }
             }
         }
@@ -69,9 +71,7 @@ namespace fastevent {
         public:
             ArduinoDriver(const serial_t& port);
             ~ArduinoDriver();
-            void sync(const bool& value);
-            void event(const bool& value);
-            void update(const bool& sync, const bool& event);
+            void update(const char& out);
             void shutdown();
 
         protected:
@@ -79,22 +79,14 @@ namespace fastevent {
             void clear();
 
         private:
-            /**
-            *   send the command byte through the serial port.
-            *   shuts down immediately upon error.
-            */
-            void send(char *c);
-
             serial_t    port_;
-            bool        sync_;
-            bool        event_;
-            int         counter_;
             bool        closed_;
+            char        prev_;
 
 #ifdef __FE_PROFILE_IO__
-            nanostamp  clock_;
+            ks::nanostamp  clock_;
             // placeholder for IO profiling info
-            averager<uint64_t, uint64_t> latency;
+            ks::averager<uint64_t, uint64_t> latency;
             uint64_t minimum, maximum;
 #endif
         };
@@ -105,7 +97,7 @@ namespace fastevent {
             static const std::string _identifier;
         public:
             static const std::string& identifier();
-            static Result<OutputDriver *> setup(Config& cfg) { return arduino::setup<LeonardoDriver>(cfg); }
+            static ks::Result<OutputDriver *> setup(Config& cfg) { return arduino::setup<LeonardoDriver>(cfg); }
 
             LeonardoDriver(const serial_t& port);
         };
@@ -116,7 +108,7 @@ namespace fastevent {
             static const std::string _identifier;
         public:
             static const std::string& identifier();
-            static Result<OutputDriver *> setup(Config& cfg) { return arduino::setup<UnoDriver>(cfg); }
+            static ks::Result<OutputDriver *> setup(Config& cfg) { return arduino::setup<UnoDriver>(cfg); }
 
             UnoDriver(const serial_t& port);
         };

@@ -23,11 +23,10 @@
 #include <fstream>
 #include "config.h"
 
-// definition
 namespace fastevent {
     namespace config {
 
-        Result<Config> load(const std::string& filename)
+        ks::Result<Config> load(const std::string& filename)
         {
             std::ifstream cfgfile(filename.c_str());
             json::container cfgroot;
@@ -36,11 +35,11 @@ namespace fastevent {
             if( cfgfile.rdstate() & std::ios_base::failbit ){
             std::cerr << "***JSON parse failed: " << filename << ": " <<
                       picojson::get_last_error() << std::endl;
-            return Result<Config>::failure();
+            return ks::Result<Config>::failure();
             }
 
             Config &root = cfgroot.get<Config>();
-            return Result<Config>::success(root);
+            return ks::Result<Config>::success(root);
         }
     }
 }

@@ -25,7 +25,7 @@
 
 #include <map>
 #include <string>
-#include "utils.h"
+#include "ks/utils.h"
 #include "config.h"
 
 #include <iostream> // for debug
@@ -45,7 +45,7 @@ namespace fastevent {
     */
     class OutputDriver
     {
-        typedef std::map<std::string, Result<OutputDriver *>(*)(Config&)> Registry;
+        typedef std::map<std::string, ks::Result<OutputDriver *>(*)(Config&)> Registry;
     private:
         static Registry _registry;
     public:
@@ -53,19 +53,9 @@ namespace fastevent {
         virtual ~OutputDriver() {}
 
         /**
-         * updates 'sync' flag
+         * updates the output of the driver
          */
-        virtual void sync(const bool& value)=0;
-
-        /**
-         * updates 'event' flag
-         */
-        virtual void event(const bool& value)=0;
-
-        /**
-         * updates 'sync' and 'event' flags at the same time
-         */
-        virtual void update(const bool& sync, const bool& event)=0;
+        virtual void update(const char& out)=0;
 
         /**
          * shuts down the driver
@@ -76,10 +66,9 @@ namespace fastevent {
         static void register_output_driver()
         {
             _registry[T::identifier()] = &T::setup;
-            // std::cerr << "registered: " << T::driver_name() << std::endl;
         }
 
-        static Result<OutputDriver *> setup(const std::string &name, Config& cfg, const bool& verbose=true);
+        static ks::Result<OutputDriver *> setup(const std::string &name, Config& cfg, const bool& verbose=true);
     };
 }
 

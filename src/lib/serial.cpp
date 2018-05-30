@@ -42,7 +42,7 @@ namespace fastevent
          * open COM port as 'unbuffered', in a WINAPI way.
          * it looks like, that jSSC opens the port this way by default.
          */
-        Result<serial_t> open(const std::string& path, const uint32_t& baud)
+        ks::Result<serial_t> open(const std::string& path, const uint32_t& baud)
         {
             serial_t    desc;
 
@@ -56,8 +56,8 @@ namespace fastevent
                              0)) == INVALID_HANDLE_VALUE)
             {
                 std::stringstream ss;
-                ss << "failed to open serial port at " << path << ": " << error_message();
-                return Result<serial_t>::failure(ss.str());
+                ss << "failed to open serial port at " << path << ": " << ks::error_message();
+                return ks::Result<serial_t>::failure(ss.str());
             }
 
             // set I/O buffer to zero (although they say that it is
@@ -79,14 +79,14 @@ namespace fastevent
             if (!SetCommState(desc, &params))
             {
                 std::stringstream ss;
-                ss << "failed to configure the serial port: " << error_message();
+                ss << "failed to configure the serial port: " << ks::error_message();
                 CloseHandle(desc);
-                return Result<serial_t>::failure(ss.str());
+                return ks::Result<serial_t>::failure(ss.str());
             }
 
             // TODO: set timeout parameters??
 
-            return Result<serial_t>::success(desc);
+            return ks::Result<serial_t>::success(desc);
         }
 
         Status get(serial_t port, char* c)
@@ -125,7 +125,7 @@ namespace fastevent
         }
 
 
-        Status put(serial_t port, char* c)
+        Status put(serial_t port, const char* c)
         {
             DWORD count = 0;
 
@@ -166,7 +166,7 @@ namespace fastevent
         }
 
 #else
-        Result<serial_t> open(const std::string& path, const uint32_t& baud)
+        ks::Result<serial_t> open(const std::string& path, const uint32_t& baud)
         {
             serial_t desc;
             struct termios tio;
@@ -182,26 +182,26 @@ namespace fastevent
             if ((desc = ::open(path.c_str(), O_RDWR | O_NONBLOCK)) < 1)
             {
                 std::stringstream ss;
-                ss << "failed to open serial port at " << path << ": " << error_message();
-                return Result<serial_t>::failure(ss.str());
+                ss << "failed to open serial port at " << path << ": " << ks::error_message();
+                return ks::Result<serial_t>::failure(ss.str());
             }
             if ( (cfsetospeed(&tio,baud) < 0) || (cfsetispeed(&tio,baud) < 0) )
             {
                 ::close(desc); // close `desc` no matter
                 std::stringstream ss;
-                ss << "failed to configure the baud rate at " << baud << ": " << error_message();
-                return Result<serial_t>::failure(ss.str());
+                ss << "failed to configure the baud rate at " << baud << ": " << ks::error_message();
+                return ks::Result<serial_t>::failure(ss.str());
             }
 
             if (tcsetattr(desc,TCSANOW,&tio) < 0)
             {
                 ::close(desc); // close `desc` no matter
                 std::stringstream ss;
-                ss << "failed to configure the serial port at " << path << ": " << error_message();
-                return Result<serial_t>::failure(ss.str());
+                ss << "failed to configure the serial port at " << path << ": " << ks::error_message();
+                return ks::Result<serial_t>::failure(ss.str());
             }
 
-            return Result<serial_t>::success(desc);
+            return ks::Result<serial_t>::success(desc);
         }
 
         Status get(serial_t port, char* c)
@@ -221,7 +221,7 @@ namespace fastevent
             return Success;
         }
 
-        Status put(serial_t port, char* c)
+        Status put(serial_t port, const char* c)
         {
             int resp;
             bool full = false;

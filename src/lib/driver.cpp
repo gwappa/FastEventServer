@@ -26,7 +26,7 @@
 namespace fastevent {
     OutputDriver::Registry OutputDriver::_registry;
 
-    Result<OutputDriver *> OutputDriver::setup(const std::string& name, Config& cfg, const bool& verbose)
+    ks::Result<OutputDriver *> OutputDriver::setup(const std::string& name, Config& cfg, const bool& verbose)
     {
         if (verbose) {
             std::cerr << "<-- registered output drivers" << std::endl;
@@ -42,13 +42,13 @@ namespace fastevent {
 
         if ( iter != _registry.end() ) {
             if (verbose) {
-                std::cout << "found output driver: " << name << std::endl;
+                std::cerr << "found output driver: " << name << std::endl;
             }
             return (iter->second)(cfg);
         } else {
             std::stringstream ss;
             ss << "could not find the output driver with name '" << name << "'";
-            return Result<OutputDriver *>::failure(ss.str());
+            return ks::Result<OutputDriver *>::failure(ss.str());
         }
     }
 }

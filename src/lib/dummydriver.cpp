@@ -25,16 +25,17 @@
 namespace fastevent {
     namespace driver {
         const std::string DummyDriver::_identifier("dummy");
+        const std::string VerboseDummyDriver::_identifier("verbose-dummy");
 
         const std::string& DummyDriver::identifier()
         {
             return _identifier;
         };
 
-        Result<OutputDriver *> DummyDriver::setup(Config& cfg)
+        ks::Result<OutputDriver *> DummyDriver::setup(Config& cfg)
         {
             std::cout << "setting up DummyDriver" << std::endl;
-            return Result<OutputDriver *>::success(new DummyDriver(cfg));
+            return ks::Result<OutputDriver *>::success(new DummyDriver(cfg));
         }
 
         DummyDriver::DummyDriver(Config& cfg)
@@ -47,25 +48,46 @@ namespace fastevent {
             // do nothing
         }
 
-        void DummyDriver::sync(const bool& value)
+        void DummyDriver::update(const char& out)
         {
-            std::cout << "sync->" << value << std::endl;
-        }
-
-        void DummyDriver::event(const bool& value)
-        {
-            std::cout << "event->" << value << std::endl;
-        }
-
-        void DummyDriver::update(const bool& sync, const bool& event)
-        {
-            this->sync(sync);
-            this->event(event);
+            // do nothing
         }
 
         void DummyDriver::shutdown()
         {
             std::cout << "shutting down DummyDriver." << std::endl;
+        }
+
+        const std::string& VerboseDummyDriver::identifier()
+        {
+            return _identifier;
+        };
+
+        ks::Result<OutputDriver *> VerboseDummyDriver::setup(Config& cfg)
+        {
+            std::cout << "setting up VerboseDummyDriver" << std::endl;
+            return ks::Result<OutputDriver *>::success(new VerboseDummyDriver(cfg));
+        }
+
+        VerboseDummyDriver::VerboseDummyDriver(Config& cfg)
+        {
+            std::cout << "initializing VerboseDummyDriver." << std::endl;
+        }
+
+        VerboseDummyDriver::~VerboseDummyDriver()
+        {
+            // do nothing
+        }
+
+        void VerboseDummyDriver::update(const char& out)
+        {
+            // report
+            std::cout << "received: '" << out << "'" << std::endl;
+        }
+
+        void VerboseDummyDriver::shutdown()
+        {
+            std::cout << "shutting down VerboseDummyDriver." << std::endl;
         }
     }
 }

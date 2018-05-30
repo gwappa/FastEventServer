@@ -23,6 +23,7 @@
 #ifndef __FE_DUMMYDRIVER_H__
 #define __FE_DUMMYDRIVER_H__
 
+#include "ks/utils.h"
 #include "driver.h"
 
 namespace fastevent {
@@ -34,13 +35,25 @@ namespace fastevent {
             static const std::string _identifier;
         public:
             static const std::string& identifier();
-            static Result<OutputDriver *> setup(Config& cfg);
+            static ks::Result<OutputDriver *> setup(Config& cfg);
 
             DummyDriver(Config& cfg);
             ~DummyDriver();
-            void sync(const bool& value);
-            void event(const bool& value);
-            void update(const bool& sync, const bool& event);
+            void update(const char& out);
+            void shutdown();
+        };
+
+        class VerboseDummyDriver: public OutputDriver
+        {
+        private:
+            static const std::string _identifier;
+        public:
+            static const std::string& identifier();
+            static ks::Result<OutputDriver *> setup(Config& cfg);
+
+            VerboseDummyDriver(Config& cfg);
+            ~VerboseDummyDriver();
+            void update(const char& out);
             void shutdown();
         };
     }

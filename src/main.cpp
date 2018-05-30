@@ -20,6 +20,7 @@
 *   main.cpp -- the main routine for FastEventServer
 */
 #include <iostream>
+#include "ks/utils.h"
 #include "config.h"
 #include "dummydriver.h"
 #include "arduinodriver.h"
@@ -27,17 +28,18 @@
 
 int main()
 {
-    fastevent::Result<fastevent::Config> config = fastevent::config::load("service.cfg");
+    ks::Result<fastevent::Config> config = fastevent::config::load("service.cfg");
     if (config.failed()) {
         std::cerr << "***failed to load config file" << std::endl;
         return 1;
     }
 
     registerOutputDriver(fastevent::driver::DummyDriver);
+    registerOutputDriver(fastevent::driver::VerboseDummyDriver);
     registerOutputDriver(fastevent::driver::UnoDriver);
     registerOutputDriver(fastevent::driver::LeonardoDriver);
 
-    fastevent::Result<fastevent::Service *> result = fastevent::Service::configure(config.get());
+    ks::Result<fastevent::Service *> result = fastevent::Service::configure(config.get());
     if (result.failed()) {
         std::cerr << "***failed to set up the service: " << result.what() << "." << std::endl;
         return 1;

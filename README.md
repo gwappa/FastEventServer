@@ -2,29 +2,22 @@
 
 Server program written in C++.
 
-You can also use the client program (TestClient) for profiling.
-
 ## Building on \*NIX
-
-Server:
 
 ```
 $ cd  server
-$ g++ -Iinclude src/common/*.cpp src/service/*.cpp -o FastEventServer
+$ make
 ```
 
 ## Building on Windows
 
-Server:
-
 ```
 $ cd server
-$ cl /Iinclude /Wall /EHsc /FeFastEventServer src\common\*.cpp src\service\*.cpp Ws2_32.lib
+$ build.bat
 ```
 
-## Testing
 
-### Python-based testing
+## Python-based testing (may be outdated)
 
 `client.py` module is available (python>=3.3 and numpy are required).
 
@@ -40,22 +33,5 @@ For example, you can test generating 1000 random commands to the server by follo
    >>> numpy.array(cl.latency) # retrieve latency values in microseconds
    ```
 More details may be found in `client.Client`'s docstring.
-
-### C++-based testing (\*NIX-only)
-
-C++-based testing approach is only available in \*NIX environment, but you can vary the frequency of
-command generation.
-
-Building:
-```
-$ cd  server
-$ g++ -Iinclude src/common/*.cpp src/test/*.cpp -o TestClient
-```
-
-You can use `TestClient` by following the steps below:
-
-1. Edit `testclient.cfg` in the `server` directory.
-2. Run `FastEventServer` in a terminal emulator.
-3. Open another terminal emulator (in the `server` directory) and run `./TestClient`.
 
 

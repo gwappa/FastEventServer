@@ -27,7 +27,7 @@
 #include <winsock2.h>
 #endif
 
-#include "utils.h"
+#include "ks/utils.h"
 #include <stdint.h>
 
 /**
@@ -51,7 +51,7 @@ namespace fastevent
         /**
         *   8-bit, no-parity, 1-stopbit
         */
-        Result<serial_t>  open(const std::string& path, const uint32_t& baud=DEFAULT_BAUDRATE);
+        ks::Result<serial_t>  open(const std::string& path, const uint32_t& baud=DEFAULT_BAUDRATE);
 
         /**
         *   reads a byte from the serial port. returns fastevent::serial::Status.
@@ -61,7 +61,7 @@ namespace fastevent
         /**
         *   writes a character. returns fastevent::serial::Status.
         */
-        Status put(serial_t port, char* c);
+        Status put(serial_t port, const char* c);
 
         void   close(serial_t port);
     }

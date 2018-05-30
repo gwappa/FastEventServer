@@ -24,13 +24,13 @@
 #define __FE_CONFIG_H__
 
 #include "json.h"
-#include "utils.h"
+#include "ks/utils.h"
 
 namespace fastevent {
     typedef json::dict Config;
 
     namespace config {
-        Result<Config> load(const std::string& filename);
+        ks::Result<Config> load(const std::string& filename);
     }
 }
 
