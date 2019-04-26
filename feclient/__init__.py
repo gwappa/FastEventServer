@@ -33,11 +33,11 @@ class DependentThread(threading.Thread):
             super().__getattr__('_running_obj')
         else:
             super().__getattr__(name)
-    
+
     def signal(self):
         """signals this thread to start termination sequence."""
         self._running = False
-        
+
 class EventModel(DependentThread):
     """a model that handles single concurrent event, with its
     associated 'value' and its callbacks.
@@ -45,7 +45,7 @@ class EventModel(DependentThread):
     - you can set a new value by calling `set(value)`.
     - you have to `start()` in order to run the event callback feature.
     - you can add/remove a callback by `.callbacks.append()` or `.callbacks.remove()`.
-    
+
     a callback function must have the single-argument signature
     like `callback(arg)`.
     """
@@ -67,8 +67,8 @@ class EventModel(DependentThread):
         super().signal()
         if self.cond.acquire(timeout=1):
             self.cond.notify_all()
-            self.cond.release() 
-    
+            self.cond.release()
+
     def run(self):
         """waits again and again for the condition variable to be set,
         each time executing callback functions."""
@@ -99,9 +99,9 @@ class Subroutine(DependentThread):
     a Subroutine object includes an EventModel object; after completion
     of `iterate()`, the Subroutine instance sets the returned value
     to the Model and fires its callbacks.
-    
+
     start the thread by calling `start()` as usual.
-    
+
     you can add/remove callback function(s) by calling its `add_callback()`
     or `remove_callback()` methods. The associated EventModel thread gets
     started directly by the Subroutine object.
@@ -149,7 +149,7 @@ class Subroutine(DependentThread):
 class Reader(Subroutine):
     def __init__(self, socket):
         """creates the reader for specified socket.
-        
+
         [parameters]
         socket -- the socket object. (only UDP is allowed for the time being)
         """
@@ -201,10 +201,10 @@ class Writer(object):
             print("***socket seems to have been already closed for writing.")
             ret = -1
         return ret
-        
+
 class Session(object):
     """a combination of a Reader and a Writer objects that are associated with a (UDP) socket.
-    
+
     you can monitor read/write actions by adding read/write callbacks to the Session object,
     just like `add_read_callback(callback)`. The callback function is for EventModel, so
     its signature must be `callback(value)`.
@@ -212,7 +212,7 @@ class Session(object):
 
     def __init__(self, cfgfile='service.cfg', host='localhost'):
         """prepares the socket and the Reader instance.
-        
+
         [parameters]
         cfgfile -- the config file path that is passed to `open_socket`.
         host    -- the host name that is passed to `open_socket`.
@@ -255,13 +255,14 @@ class Session(object):
         self.writer.remove_callback(callback)
 
     def send(self, ch):
-        return self.writer.send(ch)
+        ret = self.writer.send(ch)
+        if ch == Command.QUIT:
+            print("closing the socket...")
+            self.close()
+        return ret
 
 class Command(object):
-    SYNC_ON     = b'1'
-    SYNC_OFF    = b'2'
-    EVENT_ON    = b'A'
-    EVENT_OFF   = b'D'
-    ACQ         = b'Y'
-    QUIT        = b'X'
-
+    SYNC  = b'\x10'
+    EVENT = b'\x20'
+    CLEAR = b'\x00'
+    QUIT  = b'\x03'

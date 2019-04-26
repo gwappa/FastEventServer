@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -82,7 +82,12 @@ namespace fastevent {
         void VerboseDummyDriver::update(const char& out)
         {
             // report
-            std::cout << "received: '" << out << "'" << std::endl;
+            const bool event    = has_event(out);
+            const bool sync     = has_sync(out);
+            const bool shutdown = has_shutdown(out);
+            std::cout << "received: event=" << event
+                      << ", sync=" << sync
+                      << ", shutdown=" << shutdown << std::endl;
         }
 
         void VerboseDummyDriver::shutdown()

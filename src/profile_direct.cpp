@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,6 +38,7 @@ int main()
     }
 
     registerOutputDriver(fastevent::driver::DummyDriver);
+    registerOutputDriver(fastevent::driver::VerboseDummyDriver);
     registerOutputDriver(fastevent::driver::UnoDriver);
     registerOutputDriver(fastevent::driver::LeonardoDriver);
 
@@ -66,11 +67,13 @@ int main()
 
     ks::nanostamp   nanos;
     bool event = true;
+    const char EVENT_ON  = 'A';
+    const char EVENT_OFF = 'D';
 
     for(int i=0; i<NUMIO; i++) {
         event = !event;
         nanos.get(sent+i);
-        driver->event(event);
+        driver->update(event? EVENT_ON:EVENT_OFF);
         nanos.get(recv+i);
         if (i % 500 == 499) {
             std::cerr << ".";

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,9 +43,11 @@ typedef void *          optionvalue_t;
 
 #define NO_CLIENT 0
 
-#define IsShutdown(BUF) ((BUF[protocol::STATUS_BYTE]) == (char)0x80)
+#define RipCommands(BUF) ((BUF[protocol::STATUS_BYTE])&MASK_COMMANDS)
 
 namespace fastevent {
+
+#define IsShutdown(BUF) has_shutdown(BUF[protocol::STATUS_BYTE])
 
     namespace network {
         bool initialized = false;
@@ -106,18 +108,18 @@ namespace fastevent {
 
     Socket::~Socket() { }
 
-    int Socket::recv(char *buf, const int& len, const int& offset,
+    int Socket::recv(char *buf, const int& len,
                         struct sockaddr_in* sender) {
         ks::MutexLocker locker(&lock_);
-        socklen_t addr = sizeof(sender);
-        return ::recvfrom(socket_, buf, len, offset,
+        socketlen_t addr = sizeof(struct sockaddr_in);
+        return ::recvfrom(socket_, buf, len, 0,
                             (struct sockaddr*)sender, &addr);
     }
 
-    int Socket::send(const char *buf, const int& len, const int& offset,
+    int Socket::send(const char *buf, const int& len,
                         struct sockaddr_in* client) {
         ks::MutexLocker locker(&lock_);
-        return ::sendto(socket_, buf, len, offset,
+        return ::sendto(socket_, buf, len, 0,
                             (struct sockaddr*)client, sizeof(struct sockaddr_in));
     }
 
@@ -150,7 +152,7 @@ namespace fastevent {
             // do not reset the flag, but only release the lock
             update_.unlock();
             return false;
-        } 
+        }
         memcpy(client, &client_, sizeof(client_));
         memcpy(buffer, packet_, protocol::MSG_SIZE);
         update_.unset();
@@ -197,7 +199,7 @@ namespace fastevent {
 
             // other characters are treated as a command
             default:
-                driver_->update(buffer_[protocol::STATUS_BYTE]);
+                driver_->update(RipCommands(buffer_));
                 break;
             }
 
@@ -224,7 +226,7 @@ FINALLY:
 
             // send the command back to the client
             while (true) {
-                switch (socket_->send(buffer_, protocol::MSG_SIZE, 0, &client_))
+                switch (socket_->send(buffer_, protocol::MSG_SIZE, &client_))
                 {
 
                 case protocol::MSG_SIZE:
@@ -376,7 +378,7 @@ FINALLY:
         struct sockaddr_in  sender;
 
         // read a UDP packet
-        switch (socket_.recv(buf, protocol::MSG_SIZE, 0, &sender)) {
+        switch (socket_.recv(buf, protocol::MSG_SIZE, &sender)) {
         case 0:
             // do nothing
             break;
@@ -407,7 +409,7 @@ FINALLY:
 
         // close the listening socket
         socket_.close();
-        
+
         delete driver_;
         delete response_;
     }

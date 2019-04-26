@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,22 @@
 
 #include <iostream> // for debug
 
+#define MASK_EVENT    ((char)0x20)
+#define MASK_SYNC     ((char)0x10)
+#define MASK_QUIT     ((char)0x03)
+#define MASK_COMMANDS ((char)0x3f)
+
 namespace fastevent {
+    const inline bool has_event(const char& out) {
+        return ((out & MASK_EVENT) != 0);
+    }
+    const inline bool has_sync(const char& out) {
+        return ((out & MASK_SYNC) != 0);
+    }
+    const inline bool has_shutdown(const char& out) {
+        return ((out & MASK_QUIT) != 0);
+    }
+
     /**
     *   OutputDriver class is the base interface for output generator driver.
     *

@@ -1,4 +1,7 @@
+*.obj
+*.lib
 *.pyc
+service.cfg
 lat.npy
 profiling/*
 profile_direct
@@ -6,4 +9,3 @@ prof.csv
 *.log.npz
 log.txt
 reception*.txt
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
 *   If Service receives 'SHUTDOWN' command, it pushes the 'EOF' into the buffer,
 *   which then sequentially shuts down the other downstream threads.
 *
-*   On the other hand, for the time being there is no way for Service to know 
+*   On the other hand, for the time being there is no way for Service to know
 *   whether or not DriverThread and/or ResponseThread is running properly.
 *   This may or may not cause some problems in the future, but I cannot predict it.
 *   I leave this spec as it is for the moment.
@@ -101,9 +101,9 @@ namespace fastevent {
         explicit Socket(const socket_t& sock);
         ~Socket();
 
-        int recv(char *buf, const int& len, const int& offset,
+        int recv(char *buf, const int& len,
                     struct sockaddr_in* sender);
-        int send(const char *buf, const int& len, const int& offset,
+        int send(const char *buf, const int& len,
                     struct sockaddr_in* client);
 
         void close();
@@ -132,7 +132,7 @@ namespace fastevent {
         /**
          * write into buffer, flag update
          */
-        void write(const struct sockaddr_in* client, 
+        void write(const struct sockaddr_in* client,
                    const char *buffer,
                    const bool& is_eof=false);
 
@@ -146,7 +146,7 @@ namespace fastevent {
         /**
          * the container for the command packet
          */
-        char                packet_[protocol::MSG_SIZE]; 
+        char                packet_[protocol::MSG_SIZE];
         /**
          * whether or not the buffer is at the eof
          */

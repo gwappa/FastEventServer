@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,9 +34,10 @@ namespace fastevent {
     namespace driver {
         namespace arduino {
             // placeholders for commands to be sent
-            const char CLEAR     = (char)0x01;
+            const char CLEAR     = 'H';
+            const char EVENT     = 'L';
+            const char SYNC      = 'A';
             const char LINE_END  = '\n';
-
         }
 
         ArduinoDriver::ArduinoDriver(const serial_t& port):
@@ -86,13 +87,13 @@ namespace fastevent {
             std::cerr << "--- Arduino is ready." << std::endl;
         }
 
-        void ArduinoDriver::update(const char& out) {
+        void ArduinoDriver::update(const char& cmd) {
             if (closed_) {
                 std::cerr << "***port already closed" << std::endl;
             }
 
-            if (out == prev_) {
-                if (out != arduino::CLEAR) {
+            if (cmd == prev_) {
+                if (cmd != arduino::CLEAR) {
                     return;
                 }
             }
@@ -101,13 +102,20 @@ namespace fastevent {
             uint64_t start, stop;
             clock_.get(&start);
 #endif
+            char out = arduino::CLEAR;
+            if (has_event(cmd)) {
+                out |= arduino::EVENT;
+            }
+            if (has_sync(cmd)) {
+                out |= arduino::SYNC;
+            }
             switch (serial::put(port_, &out))
             {
             case serial::Success:
                 break;
             case serial::Error:
             default:
-                std::cerr << "***error sending serial command: " 
+                std::cerr << "***error sending serial command: "
                           << ks::error_message() << std::endl;
                 shutdown();
                 return;
@@ -119,7 +127,7 @@ namespace fastevent {
             case serial::Success:
                 break;
             case serial::Error:
-                std::cerr << "***error receiving the response: " 
+                std::cerr << "***error receiving the response: "
                           << ks::error_message() << std::endl;
                 // fallthrough
             case serial::Closed:
