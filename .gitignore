@@ -9,3 +9,4 @@ prof.csv
 *.log.npz
 log.txt
 reception*.txt
+*__pycache__/
