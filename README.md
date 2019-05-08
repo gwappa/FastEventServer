@@ -51,21 +51,7 @@ $ build.bat
 
 ### 1. Python-based API testing
 
-`feclient` module is here in this directory. It is meant to bypass the (heavier) jAER and to call the FastEventServer API directly.
-
-- `feclient.Session()` creates a connection with the server based on the settings on `service.cfg`. `session.send(ch)` sends a command to the server, and returns the command index.
-
-- The `feclient.Command` class holds the available commands to be requested. In fact, the commands are not verified for the moment, and especially `Command.QUIT` may not work properly...
-
-- A quick-and-dirty latency testing may be performed using the `feclient.test.latency` module.
-
-  ```python
-  python -m feclient.test.latency --help
-  ```
-
-  will output more information on how to use it.
-
-- A serverless session may be also possible by using the `feclient.mock.server` module. Refer to the output of `python -m feclient.mock.server --help` again for more detailed description.
+`feconnect` Git sub-module is here in the "tools-fastevent" directory. It is meant to bypass the (heavier) jAER and to call the FastEventServer API directly.
 
 ### 2. C++-based driver profiling
 
@@ -87,7 +73,7 @@ Any driver must implement the `fastevent::OutputDriver` interface (declared in `
 1. `static std::string identifier()`: used to specify the driver, just like `uno` or `leonardo`.
 2. `static ks::Result<fastevent::OutputDriver> setup(fastevent::Config& cfg)`: used to create an instance of the driver, including any necessary initialization procedures. `cfg` contains the JSON configuration parsed from `service.cfg`.
 3. `void update(const char& out)`: update the status of the output based on the `out` byte.
-4. `void shutdown()`: the hook for finalizing your driver instance. 
+4. `void shutdown()`: the hook for finalizing your driver instance.
    **IMPORTANT NOTE**: because of the current implementation (and because of the nature of the UDP communication), this method may not be always called. Please do not count on this method to be called.
 
 For a working example, please refer to the source code such as `src/lib/arduinodriver.cpp`.
@@ -105,6 +91,3 @@ registerOutputDriver(/* your driver class here */);
 ```
 
 If you intend to use `profile_direct`, you need to do the same procedure for `src/profile_direct.cpp`, too.
-
-
-
