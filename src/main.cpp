@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-9 Keisuke Sehara
+ * Copyright (C) 2018-2019 Keisuke Sehara
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,9 +26,19 @@
 #include "arduinodriver.h"
 #include "service.h"
 
+#define CONFIG_DIR_NAME  "FastEventConfigs"
+#define CONFIG_FILE_NAME "service.cfg"
+#ifdef _WIN32
+#define SEP "\\"
+#else
+#define SEP "/"
+#endif
+
+#define CONFIG_FILE ".." SEP CONFIG_DIR_NAME SEP CONFIG_FILE_NAME
+
 int main()
 {
-    ks::Result<fastevent::Config> config = fastevent::config::load("service.cfg");
+    ks::Result<fastevent::Config> config = fastevent::config::load(CONFIG_FILE);
     if (config.failed()) {
         std::cerr << "***failed to load config file" << std::endl;
         return 1;
