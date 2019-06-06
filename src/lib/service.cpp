@@ -272,7 +272,7 @@ FINALLY:
         std::string drivername(json::get<std::string>(cfg, "driver"));
         json::dict options(json::get<json::dict>(cfg, "options"));
         if (verbose) {
-            std::cout << "port=" << port << ", driver=" << drivername << std::endl;
+            std::cerr << "port=" << port << ", driver=" << drivername << std::endl;
         }
 
         // initialize driver
@@ -295,10 +295,12 @@ FINALLY:
         ks::Result<OutputDriver *> driversetup = OutputDriver::setup(name, options, verbose);
 
         if (driversetup.successful()) {
+            std::cout << ">>> driver: " << name << std::endl;
             return driversetup.get();
         } else {
-            std::cerr << "***failed to initialize the output driver: " << driversetup.what() << "." << std::endl;
-            std::cerr << "***falling back to using a dummy output driver." << std::endl;
+            std::cerr << "***failed to initialize the output driver: " << driversetup.what() << "; "
+                      << "falling back to using a dummy output driver." << std::endl;
+            std::cout << ">>> driver: " << fastevent::driver::DummyDriver::identifier() << std::endl;
             return new fastevent::driver::DummyDriver(options);
         }
     }
@@ -334,7 +336,7 @@ FINALLY:
         // as it is not a TCP socket...
 
         if (verbose) {
-            std::cout << "prepared port " << port << "..." << std::endl;
+            std::cout << ">>> port: " << port << std::endl;
         }
 
         return ks::Result<socket_t>::success(listening);
@@ -401,7 +403,7 @@ FINALLY:
     void Service::shutdown(const bool& verbose)
     {
         if (verbose) {
-            std::cout << "shutting down the server..." << std::endl;
+            std::cerr << "shutting down the server..." << std::endl;
         }
 
         driver_->join();

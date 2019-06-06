@@ -85,9 +85,9 @@ namespace fastevent {
             const bool event    = has_event(out);
             const bool sync     = has_sync(out);
             const bool shutdown = has_shutdown(out);
-            std::cout << "received: event=" << event
-                      << ", sync=" << sync
-                      << ", shutdown=" << shutdown << std::endl;
+            std::cout << ">>> status: E=" << event
+                      << ", S=" << sync
+                      << ", X=" << shutdown << std::endl;
         }
 
         void VerboseDummyDriver::shutdown()
