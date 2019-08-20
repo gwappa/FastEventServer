@@ -164,6 +164,7 @@ namespace fastevent {
                 std::cerr << "minimal response latency: " << ((double)minimum)/1000 << "usec" << std::endl;
                 std::cerr << "maximal response latency: " << ((double)maximum)/1000 << "usec" << std::endl;
                 std::cerr << "------------------------------------------------" << std::endl;
+		std::cerr << "number of transactions: " << latency.num() << std::endl;
                 std::cerr << "average response latency: " << lat/1000 << " usec/transaction" << std::endl;
                 std::cerr << "(negative latency means there was no transaction)" << std::endl;
                 std::cerr << "------------------------------------------------" << std::endl;

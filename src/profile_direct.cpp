@@ -27,11 +27,21 @@
 #include "dummydriver.h"
 #include "arduinodriver.h"
 
+#define CONFIG_DIR_NAME  "FastEventConfigs"
+#define CONFIG_FILE_NAME "service.cfg"
+#ifdef _WIN32
+#define SEP "\\"
+#else
+#define SEP "/"
+#endif
+
+#define CONFIG_FILE ".." SEP CONFIG_DIR_NAME SEP CONFIG_FILE_NAME
+
 const unsigned NUMIO = 10000;
 
 int main()
 {
-    ks::Result<fastevent::Config> config = fastevent::config::load("service.cfg");
+    ks::Result<fastevent::Config> config = fastevent::config::load(CONFIG_FILE);
     if (config.failed()) {
         std::cerr << "***failed to load config file" << std::endl;
         return 1;

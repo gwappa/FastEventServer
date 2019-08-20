@@ -28,6 +28,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 #endif
 
 #include <iostream>
@@ -166,6 +167,19 @@ namespace fastevent
         }
 
 #else
+	inline speed_t convert_baudrate(const uint32_t& baud){
+	    switch(baud){
+	    case 9600:
+	        return B9600;
+	    case 115200:
+		return B115200;
+	    case 230400:
+		return B230400;
+	    default:
+		return B115200;
+	    }
+	}
+
         ks::Result<serial_t> open(const std::string& path, const uint32_t& baud)
         {
             serial_t desc;
@@ -185,7 +199,8 @@ namespace fastevent
                 ss << "failed to open serial port at " << path << ": " << ks::error_message();
                 return ks::Result<serial_t>::failure(ss.str());
             }
-            if ( (cfsetospeed(&tio,baud) < 0) || (cfsetispeed(&tio,baud) < 0) )
+	    const speed_t baudrate = convert_baudrate(baud);
+            if ( (cfsetospeed(&tio,baudrate) < 0) || (cfsetispeed(&tio,baudrate) < 0) )
             {
                 ::close(desc); // close `desc` no matter
                 std::stringstream ss;

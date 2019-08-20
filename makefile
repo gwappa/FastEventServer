@@ -5,7 +5,8 @@ HEADERS=$(wildcard include/*.h)
 LIBSOURCE=$(wildcard src/lib/*.cpp)
 TARGET=FastEventServer_$(_ARCH)_$(_BITS)bit
 PROFILE=profile_direct_$(_ARCH)_$(_BITS)bit
-OPT=-Iinclude -Ilibks/include -Llibks -lks -Wall -O3
+CCOPTS=-Iinclude -Ilibks/include -Wall -O3 
+LDOPTS=-Llibks -lks -lpthread
 
 .PHONY: all libks
 all: libks 
@@ -13,11 +14,11 @@ all: libks
 	$(MAKE) $(PROFILE)
 
 $(TARGET): src/main.cpp $(LIBSOURCE) $(HEADERS) libks/libks.a
-	g++ $(OPT) $< $(LIBSOURCE) -o $@
+	g++ $(CCOPTS) -o $@ $< $(LIBSOURCE) $(LDOPTS)
 
 libks:
 	$(MAKE) -C libks
 
 $(PROFILE): src/profile_direct.cpp $(LIBSOURCE) $(HEADERS) libks/libks.a
-	g++ $(OPT) $< $(LIBSOURCE) -o $@
+	g++ $(CCOPTS) -o $@ $< $(LIBSOURCE) $(LDOPTS)
 
