@@ -1,0 +1,3 @@
+[submodule "libks"]
+	path = libks
+	url = https://github.com/gwappa/libks.git
