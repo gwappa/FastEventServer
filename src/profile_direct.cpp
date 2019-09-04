@@ -20,6 +20,10 @@
 *   profile_direct.cpp -- the code for profiling direct control over the driver
 */
 #include <iostream>
+#include <string>
+#include <stdio.h>
+#include <string.h>
+
 #include "ks/utils.h"
 #include "ks/timing.h"
 #include "config.h"
@@ -27,21 +31,40 @@
 #include "dummydriver.h"
 #include "arduinodriver.h"
 
-#define CONFIG_DIR_NAME  "FastEventConfigs"
-#define CONFIG_FILE_NAME "service.cfg"
-#ifdef _WIN32
-#define SEP "\\"
-#else
-#define SEP "/"
-#endif
+const unsigned DEFAULT_NUMIO = 10000;
 
-#define CONFIG_FILE ".." SEP CONFIG_DIR_NAME SEP CONFIG_FILE_NAME
+int print_usage(const char *progname) {
+    std::cerr << "***usage: " << progname 
+            << " [-n <num_transactions, defaults to 10000>]"
+            << " <config file path>" << std::endl;
+    return 1;
+}
 
-const unsigned NUMIO = 10000;
-
-int main()
+int main(int argc, char* argv[])
 {
-    ks::Result<fastevent::Config> config = fastevent::config::load(CONFIG_FILE);
+    unsigned int num_io = DEFAULT_NUMIO;
+    unsigned int cfgref = 1;
+
+    if (argc < 2) {
+        return print_usage(argv[0]);
+    } else if (strncmp(argv[1], "-n", 2) == 0) {
+        if (argc != 4) {
+            return print_usage(argv[0]);
+
+        } else if (sscanf(argv[2], "%u", &num_io) == std::char_traits<char>::eof()) {
+            std::cerr << "***failed to parse number of transactions: "
+                << argv[2] << std::endl;
+            return print_usage(argv[0]);
+
+        } else {
+            cfgref = 3;
+
+        }
+    }
+    std::cerr << "config file:       " << argv[cfgref] << std::endl;
+    std::cerr << "# of transactions: " << num_io << std::endl;
+
+    ks::Result<fastevent::Config> config = fastevent::config::load(argv[cfgref]);
     if (config.failed()) {
         std::cerr << "***failed to load config file" << std::endl;
         return 1;
@@ -72,15 +95,15 @@ int main()
 
     // try IN/OUT for some time
     std::cerr << "sending test commands";
-    uint64_t *sent = new uint64_t[NUMIO];
-    uint64_t *recv = new uint64_t[NUMIO];
+    uint64_t *sent = new uint64_t[num_io];
+    uint64_t *recv = new uint64_t[num_io];
 
     ks::nanostamp   nanos;
     bool event = true;
     const char EVENT_ON  = 'A';
     const char EVENT_OFF = 'D';
 
-    for(int i=0; i<NUMIO; i++) {
+    for(int i=0; i<num_io; i++) {
         event = !event;
         nanos.get(sent+i);
         driver->update(event? EVENT_ON:EVENT_OFF);
@@ -94,7 +117,7 @@ int main()
     // write into std out
     std::cerr << "writing...";
     std::cout << "Sent,Received" << std::endl;
-    for(int i=0; i<NUMIO; i++){
+    for(int i=0; i<num_io; i++){
         std::cout << sent[i] << ',' << recv[i] << std::endl;
     }
     std::cerr << "done." << std::endl;

@@ -26,19 +26,15 @@
 #include "arduinodriver.h"
 #include "service.h"
 
-#define CONFIG_DIR_NAME  "FastEventConfigs"
-#define CONFIG_FILE_NAME "service.cfg"
-#ifdef _WIN32
-#define SEP "\\"
-#else
-#define SEP "/"
-#endif
-
-#define CONFIG_FILE ".." SEP CONFIG_DIR_NAME SEP CONFIG_FILE_NAME
-
-int main()
+int main(int argc, char* argv[])
 {
-    ks::Result<fastevent::Config> config = fastevent::config::load(CONFIG_FILE);
+    if (argc < 2) {
+        std::cerr << "***usage: " << argv[0] << " <config file path>" << std::endl;
+        return 1;
+    }
+    std::cerr << "config file --> " << argv[1] << std::endl;
+
+    ks::Result<fastevent::Config> config = fastevent::config::load(argv[1]);
     if (config.failed()) {
         std::cerr << "***failed to load config file" << std::endl;
         return 1;
